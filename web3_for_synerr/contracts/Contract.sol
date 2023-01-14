@@ -6,12 +6,12 @@ contract MyContract {
         address owner;
         string title;
         string description;
-        uint256 FundingGoal;
+        uint256 target;
         uint256 deadline;
-        uint256 amountRaised;
+        uint256 amountCollected;
         string image;
-        address[] contributors;
-        uint256[] fundings;
+        address[] donators;
+        uint256[] donations;
         uint256 refundRequestCount;
     }
 
@@ -21,15 +21,15 @@ contract MyContract {
     mapping(uint256 => Campaign) public campaigns;
     uint256 public numberOfCampaigns = 0;
 
-    function createCampaign(address _owner, string memory _title, string memory _description, uint256 _FundingGoal, uint256 _deadline, string memory _image) public returns (uint256) {
+    function createCampaign(address _owner, string memory _title, string memory _description, uint256 _target, uint256 _deadline, string memory _image) public returns (uint256) {
         Campaign storage campaign = campaigns[numberOfCampaigns];
         require(campaign.deadline < block.timestamp, "Sorry but The deadline has already passed");
 
         campaign.owner = _owner;
         campaign.title = _title;
         campaign.description = _description;
-        campaign.FundingGoal = _FundingGoal;
-        campaign.amountRaised = 0;
+        campaign.target = _target;
+        campaign.amountCollected = 0;
         campaign.image = _image;
         campaign.deadline = _deadline;
         campaign.refundRequestCount = 0;
@@ -42,25 +42,25 @@ contract MyContract {
     function contributeToCampaign(uint256 _id, string memory _name) public payable {
         Campaign storage campaign = campaigns[_id];
         require(msg.value > 0, "Please contribute a positive amount");
-        require(campaign.amountRaised <= campaign.FundingGoal, "The Campaign has already reached its Funding Goal");
+        require(campaign.amountCollected <= campaign.target, "The Campaign has already reached its Funding Goal");
         uint256 amount = msg.value;
-        campaign.contributors.push(msg.sender);
+        campaign.donators.push(msg.sender);
         contributorNames[msg.sender] = _name;
-        campaign.fundings.push(amount);
+        campaign.donations.push(amount);
         (bool sent, ) = payable(campaign.owner).call{value: amount}("");
 
         if(sent) {
-            campaign.amountRaised = campaign.amountRaised + amount;
+            campaign.amountCollected = campaign.amountCollected + amount;
         }
         emit FundTransfer(msg.sender, _name, msg.value);
     }
     function getContributors(uint256 _id) view public returns(address[] memory,uint256[] memory, string[] memory) {
-        uint n = campaigns[_id].fundings.length;
+        uint n = campaigns[_id].donations.length;
         string[] memory ContributorNames;
         for(uint i = 0; i< n; i++) {
-            ContributorNames[i] = contributorNames[campaigns[_id].contributors[i]];
+            ContributorNames[i] = contributorNames[campaigns[_id].donators[i]];
         }
-        return(campaigns[_id].contributors, campaigns[_id].fundings, ContributorNames);
+        return(campaigns[_id].donators, campaigns[_id].donations, ContributorNames);
     }
 
     function getCampaigns() public view returns (Campaign[] memory) {
@@ -77,8 +77,8 @@ contract MyContract {
             campaigns[_id].refundRequestCount ++ ;
         }
         require(msg.sender == campaigns[_id].owner, "only Owner of the Campaign can do this");
-        require(address(this).balance >= campaigns[_id].amountRaised);
-        payable(msg.sender).transfer(campaigns[_id].amountRaised);
+        require(address(this).balance >= campaigns[_id].amountCollected);
+        payable(msg.sender).transfer(campaigns[_id].amountCollected);
     }
 
 
